@@ -7,7 +7,7 @@ Custom skills for OpenCode AI assistant.
 Clone this repo to your skills directory:
 
 ```bash
-git clone https://github.com/carlo/my-opencode-skills.git ~/.config/opencode/skills/
+git clone https://github.com/CarlJSL/my-opencode-skills.git ~/.config/opencode/skills/
 ```
 
 ## Skills
