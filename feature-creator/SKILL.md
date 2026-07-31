@@ -4,7 +4,7 @@ description: "Trigger: crear feature, nueva feature, feature structure, feature 
 license: Apache-2.0
 metadata:
   author: "carlo"
-  version: "1.1"
+  version: "1.2"
 ---
 
 ## Activation Contract
@@ -21,9 +21,9 @@ Do NOT use for:
 
 ## Hard Rules
 
-1. **Domain models live in `src/domain/models/`**, never inside features. Features import from `@/domain/models/`.
-2. **Enums live in `src/domain/enums/`**, never inside features. Import from `@/domain/enums`.
-3. **Services extend `HttpBase`** with up to 5 generics: `<DataModel, FilterModel, SelectModel, InitFormModel, ViewModel>`.
+1. **Domain models live in `src/domain/models/`**, never inside features. Features import from `@/domain/models/`. This includes interfaces used by services (like InitFormModel types).
+2. **Enums live in `src/domain/enums/`**, never inside features. Import from `@/domain/enums`. **ALWAYS export the new enum from `src/domain/enums/index.ts`** — the barrel file.
+3. **Services extend `HttpBase`** with exactly 4 generics: `<DataModel, FilterModel, SelectModel, InitFormModel>`. ViewModel is omitted when view returns the same shape as DataModel.
 4. **Mappers convert between API response types and domain types**, or form values to request types. Never mix concerns.
 5. **Query keys are centralized** in `api/{feature}.query-keys.ts`. Never use string literals like `['features', 'lista']`.
 6. **Forms use Zod schemas** for validation. Types are inferred from schemas with `z.infer`. No duplicate validation rules.
@@ -51,6 +51,7 @@ src/features/{feature-name}/
 │   └── {feature}-filtro-config.ts    # Filter field configs
 ├── mappers/
 │   ├── {feature}-filtros.mapper.ts   # UI filter ↔ Domain filter
+│   ├── {feature}-tipo-visual.ts      # Enum → StatusBadge variant (colores)
 │   └── {feature}.mapper.ts           # Form↔Request conversions
 ├── modals/
 │   ├── {Feature}CreateModal.tsx
@@ -71,32 +72,23 @@ src/features/{feature-name}/
 
 ## HttpBase Generics
 
+HttpBase has exactly **4 generics**:
+
 ```ts
 export class HttpBase<
   DataModel,      // Main entity (list, save, update)
   FilterModel,    // Filter for search/find (default: Partial<DataModel>)
   SelectModel,    // Selection data (default: Partial<DataModel>)
-  InitFormModel,  // Init form response (default: SelectModel)
-  ViewModel       // Read-only view model (default: DataModel)
+  InitFormModel   // Init form response (default: SelectModel)
 >
 ```
 
 **`get` vs `getById`:**
 - **`get(id)`** → returns `DataModel`. Used for EDITING — brings object to fill edit form, may include ICombos.
-- **`getById(id)`** → returns `ViewModel`. Used for VIEWING — read-only display, may have more/fewer fields.
+- **`getById(id)`** → returns `DataModel`. Used for VIEWING — read-only display.
+- **`init()`** → returns `SelectModel`. Used for filter dropdown data.
 
-**When to use ViewModel:**
-```ts
-class FeatureService extends HttpBase<
-  Feature,           // DataModel
-  FeatureFiltro,     // FilterModel
-  Feature,           // SelectModel
-  FeatureInit,       // InitFormModel
-  FeatureViewData    // ViewModel (different shape for view)
-> {}
-```
-
-If edit and view return the same shape, omit ViewModel (defaults to DataModel).
+If view returns a different shape, override `getById` with a custom method returning the view type.
 
 ## Service Pattern
 
@@ -267,6 +259,8 @@ export function useFiltrosConfig(): FilterFieldConfig[] {
 
 ## Enums Usage
 
+**CRITICAL: When creating a new enum, ALWAYS export it from `src/domain/enums/index.ts`.**
+
 Use enums as map keys, not hardcoded strings:
 
 ```ts
@@ -274,7 +268,7 @@ import { DocumentoEstado } from "@/domain/enums";
 
 // GOOD — auto-updates if enum value changes
 const estadoVisual: Record<string, string> = {
-  [DocumentoEstado.PENDIENTE]: "pending",
+  [DocumentoEstado.PENDIENTO]: "pending",
 };
 
 // BAD — fragile string literals
@@ -283,11 +277,41 @@ const estadoVisual: Record<string, string> = {
 };
 ```
 
+**Visual Mapper Pattern:**
+
+Every feature with enum values that appear in list tables MUST have a visual mapper file in `mappers/`:
+
+```ts
+// mappers/{feature}-tipo-visual.ts
+import type { StatusVariant } from "@/shared/components/wrapper/status-badge";
+import { TipoAuditoria } from "@/domain/enums";
+
+export const auditoriaTipoVisual: Record<string, StatusVariant> = {
+  [TipoAuditoria.ACCESO]: "active",
+  [TipoAuditoria.DESCARGA]: "in-process",
+  [TipoAuditoria.CAMBIO_ESTADO]: "pending",
+};
+```
+
+Then use it in columns with `StatusBadge`:
+
+```tsx
+cell: ({ row }) => (
+  <StatusBadge
+    variant={auditoriaTipoVisual[row.original.tipoCodigo] ?? "default"}
+    estado={row.original.tipo || "—"}
+  />
+)
+```
+
 ## Checklist Before Done
 
 - [ ] Domain model in `src/domain/models/` (not inside feature)
-- [ ] Service extends `HttpBase` with correct generics
+- [ ] Enums in `src/domain/enums/` **AND exported from `index.ts`**
+- [ ] Visual mapper (`*-tipo-visual.ts`) for enums that appear in tables
+- [ ] Service extends `HttpBase` with exactly 4 generics
 - [ ] Filter: domain filter in `domain/models/`, UI filter in `mappers/`, mapper function between them
+- [ ] Filter field IDs in mapper match the backend filter field names
 - [ ] Query keys centralized, no string literals
 - [ ] Mappers separate API↔Domain from Form↔Request
 - [ ] Zod schema validates form, types inferred with `z.infer`
