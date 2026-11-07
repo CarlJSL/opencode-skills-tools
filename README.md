@@ -70,7 +70,7 @@ git pull
 
 | Skill | Trigger | What it needs |
 | --- | --- | --- |
-| [feature-creator](skills/feature-creator/SKILL.md) | "create feature", "new feature", "feature scaffold", "crear feature", "nueva feature" | A React project based on the react-template conventions (`src/features/_base/`, `src/core/lib/http-base.ts`, `useListPage`, Zod, React Query) |
+| [feature-creator](skills/feature-creator/SKILL.md) | "create feature", "new feature", "feature scaffold", "crear feature", "nueva feature" | A React project based on the react-template conventions (`src/features/_base/`, `docs/contracts.md`, `src/core/lib/http-base.ts`, zod DTOs, `useListPage`, React Query) |
 
 ## Contributing
 
